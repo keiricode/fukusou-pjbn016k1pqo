@@ -19,65 +19,84 @@
   html, body { margin: 0; background: var(--ground); }
   body {
     max-width: 412px; min-height: 100vh; margin: 0 auto; box-sizing: border-box;
-    padding: 56px 20px 32px;
+    padding: 16px 20px 20px;
     font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: #FFFFFF;
-    display: flex; flex-direction: column; gap: 14px;
+    display: flex; flex-direction: column; gap: 10px;
   }
-  .card { border-radius: 16px; padding: 18px 20px; text-align: center; }
-  .row { display: flex; align-items: baseline; justify-content: center; gap: 16px; font-size: 22px; }
-  .val { font-size: 34px; font-weight: 700; }
-  .label { font-size: 22px; }
-  .big { font-size: 64px; font-weight: 700; text-align: center; margin: 6px 0 4px; letter-spacing: 4px; }
-  .note { font-size: 22px; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; word-break: auto-phrase; text-wrap: balance; }
-  .weather { display: flex; align-items: baseline; justify-content: center; gap: 16px; margin-top: 4px; }
-  .mid { font-size: 48px; font-weight: 700; }
-  .center { justify-content: center; }
-  .credit { margin-top: auto; text-align: center; font-size: 16px; color: #FFFFFF; }
-  .sep { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+  .head { display: flex; align-items: center; gap: 12px; }
+  .burger { width: 52px; height: 52px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.12);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 0; cursor: pointer; }
+  .burger span { display: block; width: 26px; height: 3px; background: #FFFFFF; border-radius: 2px; }
+  .card { border-radius: 16px; padding: 12px 16px; text-align: center; }
+  .head .card { flex: 1; padding: 10px 16px; }
+  .row { display: flex; align-items: baseline; justify-content: center; gap: 14px; font-size: 20px; }
+  .val { font-size: 30px; font-weight: 700; }
+  .day { font-size: 22px; font-weight: 700; text-align: center; margin-top: 6px; }
+  .two { display: flex; gap: 10px; }
+  .two .card { flex: 1; }
+  .big { font-size: 48px; font-weight: 700; letter-spacing: 4px; line-height: 1.2; }
+  .big.long { font-size: 36px; letter-spacing: 2px; }
+  .note { font-size: 18px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; word-break: auto-phrase; text-wrap: balance; }
+  .credit { margin-top: auto; text-align: center; font-size: 16px; }
+  .sepday { border-top: 4px solid #FFFFFF; border-radius: 2px; margin: 24px 0 18px; }
+  .days { display: flex; flex-direction: column; gap: 10px; }
   .error { font-size: 22px; line-height: 1.6; text-align: center; }
+
+  .menu { position: fixed; inset: 0; background: var(--ground); z-index: 10; }
+  .menu-in { max-width: 412px; margin: 0 auto; box-sizing: border-box; padding: 16px 20px 20px;
+             display: flex; flex-direction: column; gap: 12px; }
+  .close { width: 52px; height: 52px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.12);
+           color: #FFFFFF; font-size: 30px; line-height: 52px; text-align: center; padding: 0; cursor: pointer; font-family: inherit; }
+  .title { font-size: 22px; font-weight: 700; }
+  .rule { border-radius: 12px; padding: 22px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .rule .k { font-size: 18px; font-weight: 700; }
+  .rule .v { font-size: 26px; font-weight: 700; }
+  .han { background: #3C1111; border: 1px solid #6B1C1C; color: #F09595; }
+  .naga { background: #10270F; border: 1px solid #1E4A1C; color: #4CAF50; }
+  .cardi { background: #0B1F45; border: 1px solid #1E3A6E; color: #85B7EB; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-  <div class="card" style="background: var(--chiiki)">
-    <div class="row"><span>地域</span><span class="val">京都市北区</span></div>
+  <div class="head">
+    <button class="burger" id="open" aria-label="メニュー"><span></span><span></span><span></span></button>
+    <div class="card" style="background: var(--chiiki)">
+      <div class="row"><span>地域</span><span class="val">京都市北区</span></div>
+    </div>
   </div>
 
-  <div class="card" style="background: var(--saikou)">
-    <div class="row center"><span>最高気温</span><span class="val" id="max">…</span></div>
-  </div>
-
-  <div class="card" style="background: var(--saitei)">
-    <div class="row center"><span>最低気温</span><span class="val" id="min">…</span></div>
-  </div>
-
-  <div class="card" style="background: var(--nagasode)">
-    <div class="label">服装</div>
-    <div class="big" id="fuku">…</div>
-    <div class="note" id="note" hidden>夕方雨なので、カーディガンを持っていくのを推奨</div>
-  </div>
-
-  <div class="card" style="background: var(--ame)">
-    <div class="label">夕方の天気</div>
-    <div class="weather"><span class="mid" id="tenki">…</span></div>
-    <div class="row sep" id="kakuritsu" hidden><span>降水確率</span><span class="val" id="pop"></span></div>
-  </div>
+  <div class="days" id="d0"></div>
+  <div class="sepday"></div>
+  <div class="days" id="d1"></div>
 
   <div class="error" id="error" hidden>天気を取れませんでした。<br>電波を確かめて、もう一度開いてください。</div>
 
   <div class="credit">天気: Open-Meteo</div>
 
+  <div class="menu" id="menu" hidden>
+    <div class="menu-in">
+      <div class="head">
+        <button class="close" id="close" aria-label="閉じる">×</button>
+        <div class="title">服装の基準</div>
+      </div>
+      <div class="rule han"><span class="k">最高気温 25℃以上</span><span class="v">半袖</span></div>
+      <div class="rule naga"><span class="k">最高気温 20〜24℃</span><span class="v">長袖</span></div>
+      <div class="rule cardi"><span class="k">最高気温 19℃以下</span><span class="v">カーディガン</span></div>
+    </div>
+  </div>
+
 <script>
-// 京都市北区（区役所あたり）の今日の予報を Open-Meteo から取る
+// 京都市北区（区役所あたり）の今日と明日の予報を Open-Meteo から取る
 const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=135.7478"
   + "&daily=temperature_2m_max,temperature_2m_min"
   + "&hourly=precipitation_probability,weather_code"
-  + "&timezone=Asia%2FTokyo&forecast_days=1";
+  + "&timezone=Asia%2FTokyo&forecast_days=2";
 
 // 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
 // Open-Meteo の1時間ごとの値は「その時刻までの1時間」なので、17・18・19時の値で16〜19時になる
 const EVENING = [17, 18, 19];
 const RAIN_LINE = 50;
+const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
 function fukuFor(maxC) {
   if (maxC >= 25) return "半袖";
@@ -85,40 +104,56 @@ function fukuFor(maxC) {
   return "カーディガン";
 }
 
+function dayLabel(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const w = WEEK[new Date(y, m - 1, d).getDay()];
+  return m + "月" + d + "日（" + w + "）";
+}
+
+function dayHtml(name, d, k) {
+  const date = d.daily.time[k];
+  const maxC = Math.round(d.daily.temperature_2m_max[k]);
+  const minC = Math.round(d.daily.temperature_2m_min[k]);
+
+  const idx = d.hourly.time
+    .map((t, i) => (t.slice(0, 10) === date && EVENING.includes(Number(t.slice(11, 13)))) ? i : -1)
+    .filter(i => i >= 0);
+  const pop = Math.max(...idx.map(i => d.hourly.precipitation_probability[i] ?? 0));
+  const codes = idx.map(i => d.hourly.weather_code[i] ?? 0);
+  const rain = pop >= RAIN_LINE;
+  const tenki = rain ? "雨" : (Math.max(...codes) >= 2 ? "くもり" : "晴れ");
+
+  const fuku = fukuFor(maxC);
+  const note = rain && fuku !== "カーディガン"
+    ? '<div class="note">夕方雨なので、カーディガンを持っていくのを推奨</div>' : "";
+  const popHtml = rain ? '<span>降水確率</span><span class="val">' + pop + '%</span>' : "";
+
+  return '<div class="day">' + name + '　' + dayLabel(date) + '</div>'
+    + '<div class="two">'
+    + '<div class="card" style="background: var(--saikou)"><div class="row"><span>最高</span><span class="val">' + maxC + '℃</span></div></div>'
+    + '<div class="card" style="background: var(--saitei)"><div class="row"><span>最低</span><span class="val">' + minC + '℃</span></div></div>'
+    + '</div>'
+    + '<div class="card" style="background: var(--nagasode)">'
+    + '<div class="row"><span>服装</span><span class="big' + (fuku === "カーディガン" ? " long" : "") + '">' + fuku + '</span></div>'
+    + note + '</div>'
+    + '<div class="card" style="background: var(--ame)">'
+    + '<div class="row"><span>夕方の天気</span><span class="val">' + tenki + '</span>' + popHtml + '</div></div>';
+}
+
 async function main() {
   try {
     const res = await fetch(URL_, { cache: "no-store" });
     if (!res.ok) throw new Error(res.status);
     const d = await res.json();
-
-    const maxC = Math.round(d.daily.temperature_2m_max[0]);
-    const minC = Math.round(d.daily.temperature_2m_min[0]);
-    document.getElementById("max").textContent = maxC + "℃";
-    document.getElementById("min").textContent = minC + "℃";
-
-    const hours = d.hourly.time.map(t => Number(t.slice(11, 13)));
-    const idx = hours.map((h, i) => EVENING.includes(h) ? i : -1).filter(i => i >= 0);
-    const pop = Math.max(...idx.map(i => d.hourly.precipitation_probability[i] ?? 0));
-    const codes = idx.map(i => d.hourly.weather_code[i] ?? 0);
-    const rain = pop >= RAIN_LINE;
-
-    let tenki;
-    if (rain) tenki = "雨";
-    else tenki = Math.max(...codes) >= 2 ? "くもり" : "晴れ";
-
-    const fuku = fukuFor(maxC);
-    const fukuEl = document.getElementById("fuku");
-    fukuEl.textContent = fuku;
-    if (fuku === "カーディガン") fukuEl.style.fontSize = "48px";
-    document.getElementById("note").hidden = !(rain && fuku !== "カーディガン");
-
-    document.getElementById("tenki").textContent = tenki;
-    document.getElementById("pop").textContent = pop + "%";
-    document.getElementById("kakuritsu").hidden = !rain;
+    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0);
+    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1);
   } catch (e) {
     document.getElementById("error").hidden = false;
   }
 }
+
+document.getElementById("open").onclick = () => { document.getElementById("menu").hidden = false; };
+document.getElementById("close").onclick = () => { document.getElementById("menu").hidden = true; };
 main();
 </script>
 </body>

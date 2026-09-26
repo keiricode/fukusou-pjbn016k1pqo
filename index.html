@@ -18,28 +18,27 @@
   }
   html, body { margin: 0; background: var(--ground); }
   body {
-    max-width: 412px; min-height: 100vh; margin: 0 auto; box-sizing: border-box;
-    padding: 16px 20px 20px;
+    max-width: 412px; min-height: 100vh; min-height: 100dvh; margin: 0 auto; box-sizing: border-box;
+    padding: 10px 16px 12px;
     font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: #FFFFFF;
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 8px;
   }
   .head { display: flex; align-items: center; gap: 12px; }
-  .burger { width: 52px; height: 52px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.12);
+  .burger { width: 46px; height: 46px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.12);
             display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 0; cursor: pointer; }
   .burger span { display: block; width: 26px; height: 3px; background: #FFFFFF; border-radius: 2px; }
-  .card { border-radius: 16px; padding: 12px 16px; text-align: center; }
-  .head .card { flex: 1; padding: 10px 16px; }
+  .card { border-radius: 14px; padding: 8px 14px; text-align: center; }
+  .head .card { flex: 1; padding: 6px 14px; }
   .row { display: flex; align-items: baseline; justify-content: center; gap: 14px; font-size: 20px; }
-  .val { font-size: 30px; font-weight: 700; }
-  .day { font-size: 22px; font-weight: 700; text-align: center; margin-top: 6px; }
-  .two { display: flex; gap: 10px; }
+  .val { font-size: 28px; font-weight: 700; }
+  .day { font-size: 20px; font-weight: 700; text-align: center; }
+  .two { display: flex; gap: 8px; }
   .two .card { flex: 1; }
-  .big { font-size: 48px; font-weight: 700; letter-spacing: 4px; line-height: 1.2; }
+  .big { font-size: 42px; font-weight: 700; letter-spacing: 4px; line-height: 1.2; }
   .big.long { font-size: 36px; letter-spacing: 2px; }
-  .note { font-size: 18px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; word-break: auto-phrase; text-wrap: balance; }
   .credit { margin-top: auto; text-align: center; font-size: 16px; }
-  .sepday { border-top: 4px solid #FFFFFF; border-radius: 2px; margin: 24px 0 18px; }
-  .days { display: flex; flex-direction: column; gap: 10px; }
+  .sepday { border-top: 4px solid #FFFFFF; border-radius: 2px; margin: 12px 0 8px; }
+  .days { display: flex; flex-direction: column; gap: 8px; }
   .error { font-size: 22px; line-height: 1.6; text-align: center; }
 
   .menu { position: fixed; inset: 0; background: var(--ground); z-index: 10; }
@@ -61,7 +60,7 @@
   <div class="head">
     <button class="burger" id="open" aria-label="メニュー"><span></span><span></span><span></span></button>
     <div class="card" style="background: var(--chiiki)">
-      <div class="row"><span>地域</span><span class="val">京都市北区</span></div>
+      <div class="row"><span class="val">京都市北区</span></div>
     </div>
   </div>
 
@@ -112,7 +111,7 @@ function dayLabel(dateStr) {
   return m + "月" + d + "日（" + w + "）";
 }
 
-function dayHtml(name, d, k, hoursUse, when, withNote) {
+function dayHtml(name, d, k, hoursUse, when) {
   const date = d.daily.time[k];
   const maxC = Math.round(d.daily.temperature_2m_max[k]);
   const minC = Math.round(d.daily.temperature_2m_min[k]);
@@ -126,8 +125,6 @@ function dayHtml(name, d, k, hoursUse, when, withNote) {
   const tenki = rain ? "雨" : (Math.max(...codes) >= 2 ? "くもり" : "晴れ");
 
   const fuku = fukuFor(maxC);
-  const note = withNote && rain && fuku !== "カーディガン"
-    ? '<div class="note">夕方雨なので、カーディガンを持っていくのを推奨</div>' : "";
   const popHtml = rain ? '<span>降水確率</span><span class="val">' + pop + '%</span>' : "";
 
   return '<div class="day">' + name + '　' + dayLabel(date) + '</div>'
@@ -136,8 +133,8 @@ function dayHtml(name, d, k, hoursUse, when, withNote) {
     + '<div class="card" style="background: var(--saitei)"><div class="row"><span>最低</span><span class="val">' + minC + '℃</span></div></div>'
     + '</div>'
     + '<div class="card" style="background: var(--nagasode)">'
-    + '<div class="row"><span>服装</span><span class="big' + (fuku === "カーディガン" ? " long" : "") + '">' + fuku + '</span></div>'
-    + note + '</div>'
+    + '<div class="row"><span class="big' + (fuku === "カーディガン" ? " long" : "") + '">' + fuku + '</span></div>'
+    + '</div>'
     + '<div class="card" style="background: var(--ame)">'
     + '<div class="row"><span>' + when + '</span><span class="val">' + tenki + '</span>' + popHtml + '</div></div>';
 }
@@ -147,8 +144,8 @@ async function main() {
     const res = await fetch(URL_, { cache: "no-store" });
     if (!res.ok) throw new Error(res.status);
     const d = await res.json();
-    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0, EVENING, "夕方の天気", true);
-    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1, MORNING, "朝の天気", false);
+    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0, EVENING, "夕方の天気");
+    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1, MORNING, "朝の天気");
   } catch (e) {
     document.getElementById("error").hidden = false;
   }

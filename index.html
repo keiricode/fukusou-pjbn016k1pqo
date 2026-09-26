@@ -75,7 +75,8 @@ const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=
   + "&timezone=Asia%2FTokyo&forecast_days=1";
 
 // 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
-const EVENING = [16, 17, 18, 19];
+// Open-Meteo の1時間ごとの値は「その時刻までの1時間」なので、17・18・19時の値で16〜19時になる
+const EVENING = [17, 18, 19];
 const RAIN_LINE = 50;
 
 function fukuFor(maxC) {
@@ -83,8 +84,6 @@ function fukuFor(maxC) {
   if (maxC >= 20) return "長袖";
   return "カーディガン";
 }
-
-function isSnow(code) { return (code >= 71 && code <= 77) || code === 85 || code === 86; }
 
 async function main() {
   try {
@@ -104,7 +103,7 @@ async function main() {
     const rain = pop >= RAIN_LINE;
 
     let tenki;
-    if (rain) tenki = codes.some(isSnow) ? "雪" : "雨";
+    if (rain) tenki = "雨";
     else tenki = Math.max(...codes) >= 2 ? "くもり" : "晴れ";
 
     const fuku = fukuFor(maxC);

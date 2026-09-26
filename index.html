@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0E1726">
+<title>今日の服装</title>
+<style>
+  :root {
+    --ground: #0E1726;
+    --chiiki: #BE185D;
+    --saikou: #C2410C;
+    --saitei: #1D4ED8;
+    --nagasode: #0F766E;
+    --ame: #0369A1;
+    --line: rgba(255,255,255,0.35);
+  }
+  html, body { margin: 0; background: var(--ground); }
+  body {
+    max-width: 412px; min-height: 100vh; margin: 0 auto; box-sizing: border-box;
+    padding: 56px 20px 32px;
+    font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: #FFFFFF;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .card { border-radius: 16px; padding: 18px 20px; text-align: center; }
+  .row { display: flex; align-items: baseline; justify-content: center; gap: 16px; font-size: 22px; }
+  .val { font-size: 34px; font-weight: 700; }
+  .label { font-size: 22px; }
+  .big { font-size: 64px; font-weight: 700; text-align: center; margin: 6px 0 4px; letter-spacing: 4px; }
+  .note { font-size: 22px; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; word-break: auto-phrase; text-wrap: balance; }
+  .weather { display: flex; align-items: baseline; justify-content: center; gap: 16px; margin-top: 4px; }
+  .mid { font-size: 48px; font-weight: 700; }
+  .center { justify-content: center; }
+  .credit { margin-top: auto; text-align: center; font-size: 16px; color: #FFFFFF; }
+  .sep { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+  .error { font-size: 22px; line-height: 1.6; text-align: center; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="card" style="background: var(--chiiki)">
+    <div class="row"><span>地域</span><span class="val">京都市北区</span></div>
+  </div>
+
+  <div class="card" style="background: var(--saikou)">
+    <div class="row center"><span>最高気温</span><span class="val" id="max">…</span></div>
+  </div>
+
+  <div class="card" style="background: var(--saitei)">
+    <div class="row center"><span>最低気温</span><span class="val" id="min">…</span></div>
+  </div>
+
+  <div class="card" style="background: var(--nagasode)">
+    <div class="label">服装</div>
+    <div class="big" id="fuku">…</div>
+    <div class="note" id="note" hidden>夕方雨なので、カーディガンを持っていくのを推奨</div>
+  </div>
+
+  <div class="card" style="background: var(--ame)">
+    <div class="label">夕方の天気</div>
+    <div class="weather"><span class="mid" id="tenki">…</span></div>
+    <div class="row sep" id="kakuritsu" hidden><span>降水確率</span><span class="val" id="pop"></span></div>
+  </div>
+
+  <div class="error" id="error" hidden>天気を取れませんでした。<br>電波を確かめて、もう一度開いてください。</div>
+
+  <div class="credit">天気: Open-Meteo</div>
+
+<script>
+// 京都市北区（区役所あたり）の今日の予報を Open-Meteo から取る
+const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=135.7478"
+  + "&daily=temperature_2m_max,temperature_2m_min"
+  + "&hourly=precipitation_probability,weather_code"
+  + "&timezone=Asia%2FTokyo&forecast_days=1";
+
+// 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
+const EVENING = [16, 17, 18, 19];
+const RAIN_LINE = 50;
+
+function fukuFor(maxC) {
+  if (maxC >= 25) return "半袖";
+  if (maxC >= 20) return "長袖";
+  return "カーディガン";
+}
+
+function isSnow(code) { return (code >= 71 && code <= 77) || code === 85 || code === 86; }
+
+async function main() {
+  try {
+    const res = await fetch(URL_, { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
+
+    const maxC = Math.round(d.daily.temperature_2m_max[0]);
+    const minC = Math.round(d.daily.temperature_2m_min[0]);
+    document.getElementById("max").textContent = maxC + "℃";
+    document.getElementById("min").textContent = minC + "℃";
+
+    const hours = d.hourly.time.map(t => Number(t.slice(11, 13)));
+    const idx = hours.map((h, i) => EVENING.includes(h) ? i : -1).filter(i => i >= 0);
+    const pop = Math.max(...idx.map(i => d.hourly.precipitation_probability[i] ?? 0));
+    const codes = idx.map(i => d.hourly.weather_code[i] ?? 0);
+    const rain = pop >= RAIN_LINE;
+
+    let tenki;
+    if (rain) tenki = codes.some(isSnow) ? "雪" : "雨";
+    else tenki = Math.max(...codes) >= 2 ? "くもり" : "晴れ";
+
+    const fuku = fukuFor(maxC);
+    const fukuEl = document.getElementById("fuku");
+    fukuEl.textContent = fuku;
+    if (fuku === "カーディガン") fukuEl.style.fontSize = "48px";
+    document.getElementById("note").hidden = !(rain && fuku !== "カーディガン");
+
+    document.getElementById("tenki").textContent = tenki;
+    document.getElementById("pop").textContent = pop + "%";
+    document.getElementById("kakuritsu").hidden = !rain;
+  } catch (e) {
+    document.getElementById("error").hidden = false;
+  }
+}
+main();
+</script>
+</body>
+</html>

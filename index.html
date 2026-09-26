@@ -95,6 +95,8 @@ const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=
 // 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
 // Open-Meteo の1時間ごとの値は「その時刻までの1時間」なので、17・18・19時の値で16〜19時になる
 const EVENING = [17, 18, 19];
+// 明日の段は朝 = 8時〜10時（9・10時の値）
+const MORNING = [9, 10];
 const RAIN_LINE = 50;
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -110,13 +112,13 @@ function dayLabel(dateStr) {
   return m + "月" + d + "日（" + w + "）";
 }
 
-function dayHtml(name, d, k) {
+function dayHtml(name, d, k, hoursUse, when, withNote) {
   const date = d.daily.time[k];
   const maxC = Math.round(d.daily.temperature_2m_max[k]);
   const minC = Math.round(d.daily.temperature_2m_min[k]);
 
   const idx = d.hourly.time
-    .map((t, i) => (t.slice(0, 10) === date && EVENING.includes(Number(t.slice(11, 13)))) ? i : -1)
+    .map((t, i) => (t.slice(0, 10) === date && hoursUse.includes(Number(t.slice(11, 13)))) ? i : -1)
     .filter(i => i >= 0);
   const pop = Math.max(...idx.map(i => d.hourly.precipitation_probability[i] ?? 0));
   const codes = idx.map(i => d.hourly.weather_code[i] ?? 0);
@@ -124,7 +126,7 @@ function dayHtml(name, d, k) {
   const tenki = rain ? "雨" : (Math.max(...codes) >= 2 ? "くもり" : "晴れ");
 
   const fuku = fukuFor(maxC);
-  const note = rain && fuku !== "カーディガン"
+  const note = withNote && rain && fuku !== "カーディガン"
     ? '<div class="note">夕方雨なので、カーディガンを持っていくのを推奨</div>' : "";
   const popHtml = rain ? '<span>降水確率</span><span class="val">' + pop + '%</span>' : "";
 
@@ -137,7 +139,7 @@ function dayHtml(name, d, k) {
     + '<div class="row"><span>服装</span><span class="big' + (fuku === "カーディガン" ? " long" : "") + '">' + fuku + '</span></div>'
     + note + '</div>'
     + '<div class="card" style="background: var(--ame)">'
-    + '<div class="row"><span>夕方の天気</span><span class="val">' + tenki + '</span>' + popHtml + '</div></div>';
+    + '<div class="row"><span>' + when + '</span><span class="val">' + tenki + '</span>' + popHtml + '</div></div>';
 }
 
 async function main() {
@@ -145,8 +147,8 @@ async function main() {
     const res = await fetch(URL_, { cache: "no-store" });
     if (!res.ok) throw new Error(res.status);
     const d = await res.json();
-    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0);
-    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1);
+    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0, EVENING, "夕方の天気", true);
+    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1, MORNING, "朝の天気", false);
   } catch (e) {
     document.getElementById("error").hidden = false;
   }

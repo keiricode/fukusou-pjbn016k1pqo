@@ -54,6 +54,11 @@
   .han { background: #3C1111; border: 1px solid #6B1C1C; color: #F09595; }
   .naga { background: #10270F; border: 1px solid #1E4A1C; color: #4CAF50; }
   .cardi { background: #0B1F45; border: 1px solid #1E3A6E; color: #85B7EB; }
+  /* 今日の段が余った高さを受け取って大きくなる（天気を取れないときは伸ばさない） */
+  #d0:not(:empty) { flex: 1; }
+  #d0 .two, #d0 > .card { flex: 1; }
+  #d0 .card { display: flex; align-items: center; justify-content: center; }
+  .credit { padding-top: 12px; }
   [hidden] { display: none !important; }
 </style>
 </head>

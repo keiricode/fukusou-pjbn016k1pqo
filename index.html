@@ -98,6 +98,8 @@ const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=
   + "&timezone=Asia%2FTokyo&forecast_days=2";
 // 予備: 気象庁の京都府の予報（鍵不要）
 const JMA_URL = "https://www.jma.go.jp/bosai/forecast/data/forecast/260000.json";
+// 予備の予備: 気象庁のアメダス（京都 61286）の今日ここまでの最高・最低（夕方17時の発表から今日の気温が予報から消えるため）
+const AMEDAS = "https://www.jma.go.jp/bosai/amedas/data/";
 
 // 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
 // Open-Meteo の1時間ごとの値は「その時刻までの1時間」なので、17・18・19時の値で16〜19時になる
@@ -137,7 +139,7 @@ function fromOpenMeteo(d, k, hoursUse) {
 
 // 気象庁の予報（京都府南部・京都の気温）から、1日分の中身を取り出す（Open-Meteoが止まっているときの予備）
 // 降水確率は6時間ごと（0・6・12・18時から）。blocks はその時間帯の始まりの時
-function fromJma(j, date, blocks) {
+function fromJma(j, date, blocks, obs) {
   const near = j[0].timeSeries, week = j[1] ? j[1].timeSeries : [];
   const at = (times, i) => times[i].slice(0, 10) === date ? Number(times[i].slice(11, 13)) : -1;
 
@@ -160,6 +162,8 @@ function fromJma(j, date, blocks) {
   }
   // 朝5時の発表では、今日の最低の欄に最高と同じ数が入る（今日の最低は出ない）
   if (minC === maxC && date === near[2].timeDefines[0].slice(0, 10)) minC = NaN;
+  // 予報に今日の気温が無い（夕方以降）ときは、アメダスの今日ここまでの最高・最低
+  if (isNaN(maxC) && obs) { maxC = obs.max; minC = obs.min; }
   if (isNaN(maxC)) throw new Error("no temp");
 
   // 降水確率
@@ -216,6 +220,25 @@ function jstDates() {
   return [f(0), f(1)];
 }
 
+// アメダス京都の今日ここまでの最高・最低（取れなければ null）
+async function amedasToday() {
+  try {
+    const res = await fetch(AMEDAS + "latest_time.txt", { cache: "no-store" });
+    const lt = (await res.text()).trim();              // 例 2026-11-14T20:10:00+09:00
+    const ymd = lt.slice(0, 10).replace(/-/g, "");
+    const h3 = String(Math.floor(Number(lt.slice(11, 13)) / 3) * 3).padStart(2, "0");
+    const d = await getJson(AMEDAS + "point/61286/" + ymd + "_" + h3 + ".json");
+    const keys = Object.keys(d).sort();
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const r = d[keys[i]];
+      if (r.maxTemp && r.maxTemp[0] != null && r.minTemp && r.minTemp[0] != null) {
+        return { max: Number(r.maxTemp[0]), min: Number(r.minTemp[0]) };
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 function show(today, tomorrow, source) {
   document.getElementById("d0").innerHTML = dayHtml("今日", today, "夕方の天気");
   document.getElementById("d1").innerHTML = dayHtml("明日", tomorrow, "朝の天気");
@@ -233,7 +256,10 @@ async function main() {
   try {
     const j = await getJson(JMA_URL);
     const [t0, t1] = jstDates();
-    show(fromJma(j, t0, [12, 18]), fromJma(j, t1, [6]), "気象庁");
+    let today;
+    try { today = fromJma(j, t0, [12, 18]); }
+    catch (e) { today = fromJma(j, t0, [12, 18], await amedasToday()); }
+    show(today, fromJma(j, t1, [6]), "気象庁");
     return;
   } catch (e) {}
   document.getElementById("error").hidden = false;

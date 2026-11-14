@@ -76,7 +76,7 @@
 
   <div class="error" id="error" hidden>天気を取れませんでした。<br>電波を確かめて、もう一度開いてください。</div>
 
-  <div class="credit">天気: Open-Meteo</div>
+  <div class="credit" id="credit">天気: Open-Meteo</div>
 
   <div class="menu" id="menu" hidden>
     <div class="menu-in">
@@ -96,6 +96,8 @@ const URL_ = "https://api.open-meteo.com/v1/forecast?latitude=35.0444&longitude=
   + "&daily=temperature_2m_max,temperature_2m_min"
   + "&hourly=precipitation_probability,weather_code"
   + "&timezone=Asia%2FTokyo&forecast_days=2";
+// 予備: 気象庁の京都府の予報（鍵不要）
+const JMA_URL = "https://www.jma.go.jp/bosai/forecast/data/forecast/260000.json";
 
 // 夕方 = 16時〜19時。この間のどこかで降水確率50%以上なら「雨」
 // Open-Meteo の1時間ごとの値は「その時刻までの1時間」なので、17・18・19時の値で16〜19時になる
@@ -117,26 +119,76 @@ function dayLabel(dateStr) {
   return m + "月" + d + "日（" + w + "）";
 }
 
-function dayHtml(name, d, k, hoursUse, when) {
+// Open-Meteo の予報から、1日分の中身（日付・最高・最低・天気・降水確率）を取り出す
+function fromOpenMeteo(d, k, hoursUse) {
   const date = d.daily.time[k];
   const maxC = Math.round(d.daily.temperature_2m_max[k]);
   const minC = Math.round(d.daily.temperature_2m_min[k]);
-
   const idx = d.hourly.time
     .map((t, i) => (t.slice(0, 10) === date && hoursUse.includes(Number(t.slice(11, 13)))) ? i : -1)
     .filter(i => i >= 0);
+  if (!idx.length || isNaN(maxC)) throw new Error("no data");
   const pop = Math.max(...idx.map(i => d.hourly.precipitation_probability[i] ?? 0));
   const codes = idx.map(i => d.hourly.weather_code[i] ?? 0);
   const rain = pop >= RAIN_LINE;
   const tenki = rain ? "雨" : (Math.max(...codes) >= 2 ? "くもり" : "晴れ");
+  return { date, maxC, minC, tenki, pop, rain };
+}
 
+// 気象庁の予報（京都府南部・京都の気温）から、1日分の中身を取り出す（Open-Meteoが止まっているときの予備）
+// 降水確率は6時間ごと（0・6・12・18時から）。blocks はその時間帯の始まりの時
+function fromJma(j, date, blocks) {
+  const near = j[0].timeSeries, week = j[1] ? j[1].timeSeries : [];
+  const at = (times, i) => times[i].slice(0, 10) === date ? Number(times[i].slice(11, 13)) : -1;
+
+  // 気温: 京都（61286）。00時の欄が最低、09時の欄が最高。無ければ週間予報から
+  let maxC = NaN, minC = NaN;
+  const t2 = near[2], kyoto = t2.areas.find(a => a.area.code === "61286") || t2.areas[0];
+  t2.timeDefines.forEach((t, i) => {
+    const h = at(t2.timeDefines, i), v = kyoto.temps[i];
+    if (v === "" || v == null) return;
+    if (h === 9) maxC = Number(v);
+    if (h === 0) minC = Number(v);
+  });
+  if (week[1]) {
+    const wa = week[1].areas.find(a => a.area.code === "61286") || week[1].areas[0];
+    week[1].timeDefines.forEach((t, i) => {
+      if (t.slice(0, 10) !== date) return;
+      if (isNaN(maxC) && wa.tempsMax[i] !== "") maxC = Number(wa.tempsMax[i]);
+      if (isNaN(minC) && wa.tempsMin[i] !== "") minC = Number(wa.tempsMin[i]);
+    });
+  }
+  // 朝5時の発表では、今日の最低の欄に最高と同じ数が入る（今日の最低は出ない）
+  if (minC === maxC && date === near[2].timeDefines[0].slice(0, 10)) minC = NaN;
+  if (isNaN(maxC)) throw new Error("no temp");
+
+  // 降水確率
+  const p1 = near[1], pa = p1.areas.find(a => a.area.code === "260010") || p1.areas[0];
+  const pops = [];
+  p1.timeDefines.forEach((t, i) => {
+    if (blocks.includes(at(p1.timeDefines, i)) && pa.pops[i] !== "") pops.push(Number(pa.pops[i]));
+  });
+  const pop = pops.length ? Math.max(...pops) : 0;
+
+  // 天気コード（100番台=晴れ、200番台=くもり、300番台以上=雨や雪）
+  const w0 = near[0], wa0 = w0.areas.find(a => a.area.code === "260010") || w0.areas[0];
+  let code = "";
+  w0.timeDefines.forEach((t, i) => { if (t.slice(0, 10) === date) code = wa0.weatherCodes[i]; });
+  const rain = pop >= RAIN_LINE;
+  const tenki = rain ? "雨" : (code.startsWith("1") ? "晴れ" : "くもり");
+  return { date, maxC: Math.round(maxC), minC: isNaN(minC) ? NaN : Math.round(minC), tenki, pop, rain };
+}
+
+function dayHtml(name, s, when) {
+  const { date, maxC, rain, pop, tenki } = s;
+  const minC = isNaN(s.minC) ? "－" : s.minC + "℃";
   const fuku = fukuFor(maxC);
   const popHtml = rain ? '<span>降水確率</span><span class="val">' + pop + '%</span>' : "";
 
   return '<div class="day">' + name + '　' + dayLabel(date) + '</div>'
     + '<div class="two">'
     + '<div class="card" style="background: var(--saikou)"><div class="row"><span>最高</span><span class="val">' + maxC + '℃</span></div></div>'
-    + '<div class="card" style="background: var(--saitei)"><div class="row"><span>最低</span><span class="val">' + minC + '℃</span></div></div>'
+    + '<div class="card" style="background: var(--saitei)"><div class="row"><span>最低</span><span class="val">' + minC + '</span></div></div>'
     + '</div>'
     + '<div class="card" style="background: var(--nagasode)">'
     + '<div class="row"><span class="big' + (fuku === "カーディガン" ? " long" : "") + '">' + fuku + '</span></div>'
@@ -145,16 +197,46 @@ function dayHtml(name, d, k, hoursUse, when) {
     + '<div class="row"><span>' + when + '</span><span class="val">' + tenki + '</span>' + popHtml + '</div></div>';
 }
 
-async function main() {
+// 待つのは10秒まで（返事が無いまま止まらないように）
+async function getJson(url) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 10000);
   try {
-    const res = await fetch(URL_, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store", signal: ctl.signal });
     if (!res.ok) throw new Error(res.status);
-    const d = await res.json();
-    document.getElementById("d0").innerHTML = dayHtml("今日", d, 0, EVENING, "夕方の天気");
-    document.getElementById("d1").innerHTML = dayHtml("明日", d, 1, MORNING, "朝の天気");
-  } catch (e) {
-    document.getElementById("error").hidden = false;
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// 日本時間の今日と明日（YYYY-MM-DD）
+function jstDates() {
+  const f = n => new Date(Date.now() + 9 * 3600e3 + n * 86400e3).toISOString().slice(0, 10);
+  return [f(0), f(1)];
+}
+
+function show(today, tomorrow, source) {
+  document.getElementById("d0").innerHTML = dayHtml("今日", today, "夕方の天気");
+  document.getElementById("d1").innerHTML = dayHtml("明日", tomorrow, "朝の天気");
+  document.getElementById("credit").textContent = "天気: " + source;
+}
+
+async function main() {
+  // ①ふだんは Open-Meteo
+  try {
+    const d = await getJson(URL_);
+    show(fromOpenMeteo(d, 0, EVENING), fromOpenMeteo(d, 1, MORNING), "Open-Meteo");
+    return;
+  } catch (e) {}
+  // ②だめなら気象庁（夕方16〜19時 → 12時・18時からの枠、朝8〜10時 → 6時からの枠）
+  try {
+    const j = await getJson(JMA_URL);
+    const [t0, t1] = jstDates();
+    show(fromJma(j, t0, [12, 18]), fromJma(j, t1, [6]), "気象庁");
+    return;
+  } catch (e) {}
+  document.getElementById("error").hidden = false;
 }
 
 document.getElementById("open").onclick = () => { document.getElementById("menu").hidden = false; };

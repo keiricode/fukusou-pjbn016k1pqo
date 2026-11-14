@@ -202,9 +202,9 @@ function dayHtml(name, s, when) {
 }
 
 // 待つのは10秒まで（返事が無いまま止まらないように）
-async function getJson(url) {
+async function getJson(url, ms = 10000) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 10000);
+  const timer = setTimeout(() => ctl.abort(), ms);
   try {
     const res = await fetch(url, { cache: "no-store", signal: ctl.signal });
     if (!res.ok) throw new Error(res.status);
@@ -246,19 +246,24 @@ function show(today, tomorrow, source) {
 }
 
 async function main() {
+  // 開いたらすぐ、Open-Meteo・気象庁・アメダスへ同時に聞く（Open-Meteoが止まっていても待たされないように）
+  const omP = getJson(URL_, 3000);          // Open-Meteoはふだん1秒かからないので、待つのは3秒まで
+  const jmaP = getJson(JMA_URL);
+  const obsP = amedasToday();
+  omP.catch(() => {}); jmaP.catch(() => {});
   // ①ふだんは Open-Meteo
   try {
-    const d = await getJson(URL_);
+    const d = await omP;
     show(fromOpenMeteo(d, 0, EVENING), fromOpenMeteo(d, 1, MORNING), "Open-Meteo");
     return;
   } catch (e) {}
   // ②だめなら気象庁（夕方16〜19時 → 12時・18時からの枠、朝8〜10時 → 6時からの枠）
   try {
-    const j = await getJson(JMA_URL);
+    const j = await jmaP;
     const [t0, t1] = jstDates();
     let today;
     try { today = fromJma(j, t0, [12, 18]); }
-    catch (e) { today = fromJma(j, t0, [12, 18], await amedasToday()); }
+    catch (e) { today = fromJma(j, t0, [12, 18], await obsP); }
     show(today, fromJma(j, t1, [6]), "気象庁");
     return;
   } catch (e) {}
